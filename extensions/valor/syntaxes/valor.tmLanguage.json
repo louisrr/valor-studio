@@ -1,0 +1,177 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Valor",
+  "scopeName": "source.valor",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#declarations" },
+    { "include": "#modules" },
+    { "include": "#attributes" },
+    { "include": "#types" },
+    { "include": "#constants" },
+    { "include": "#keywords" },
+    { "include": "#serviceDsl" },
+    { "include": "#intrinsics" },
+    { "include": "#numbers" },
+    { "include": "#functions" },
+    { "include": "#properties" },
+    { "include": "#lifetimes" },
+    { "include": "#operators" },
+    { "include": "#variables" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.valor",
+          "begin": "//",
+          "beginCaptures": { "0": { "name": "punctuation.definition.comment.valor" } },
+          "end": "$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.valor",
+          "begin": "\"",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.valor" } },
+          "end": "\"",
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.valor" } },
+          "patterns": [
+            { "name": "constant.character.escape.valor", "match": "\\\\(?:[\\\\\"nrt0]|x[0-9A-Fa-f]{2}|u\\{[0-9A-Fa-f]+\\})" }
+          ]
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "match": "\\b(class)\\s+([A-Za-z_][\\w-]*)",
+          "captures": {
+            "1": { "name": "storage.type.class.valor" },
+            "2": { "name": "entity.name.type.class.valor" }
+          }
+        },
+        {
+          "match": "\\b(struct|interface|service)\\s+([A-Za-z_][\\w-]*)",
+          "captures": {
+            "1": { "name": "storage.type.valor" },
+            "2": { "name": "entity.name.type.valor" }
+          }
+        },
+        {
+          "match": "\\b([A-Za-z_][\\w-]*)\\s*(?=\\([^;{}]*\\)\\s*(?:->[^{}]+)?\\{)",
+          "captures": { "1": { "name": "entity.name.function.valor" } }
+        }
+      ]
+    },
+    "modules": {
+      "patterns": [
+        {
+          "match": "\\b(module|import)\\s+([A-Za-z_][\\w-]*(?:\\.[A-Za-z_][\\w-]*)*)",
+          "captures": {
+            "1": { "name": "keyword.control.import.valor" },
+            "2": { "name": "entity.name.namespace.valor" }
+          }
+        }
+      ]
+    },
+    "attributes": {
+      "patterns": [
+        {
+          "match": "(@)([A-Za-z_][\\w-]*)",
+          "captures": {
+            "1": { "name": "punctuation.definition.annotation.valor" },
+            "2": { "name": "entity.name.attribute.valor" }
+          }
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.valor",
+          "match": "\\b(?:void|bool|char|string|bigint|biginteger|[iu](?:8|16|32|64|128)|[iu]size|f16|bf16|f32|f64|ptr|span|Vector|Matrix|Tensor|JSON|GeoJSON)\\b"
+        },
+        {
+          "name": "support.type.qualifier.valor",
+          "match": "\\b(?:global|shared|local|constant|host|row_major|col_major|nchw|nhwc)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        { "name": "constant.language.boolean.valor", "match": "\\b(?:true|false)\\b" },
+        { "name": "constant.language.valor", "match": "\\b(?:ddpm|flow_matching|rectified_flow|none)\\b" },
+        { "name": "variable.other.constant.valor", "match": "\\b[A-Z][A-Z0-9_]+\\b" }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.valor",
+          "match": "\\b(?:import|module|if|else|while|return|as|implements|delta)\\b"
+        },
+        {
+          "name": "storage.modifier.valor",
+          "match": "\\b(?:pub|public|private|protected|encrypted|base|impl|extern|unsafe|let|mut|constexpr|consteval|constval|comptime|template|typename|class|struct|interface|service|kernel|device|shared)\\b"
+        }
+      ]
+    },
+    "serviceDsl": {
+      "patterns": [
+        {
+          "name": "entity.name.tag.service-section.valor",
+          "match": "\\b(?:api|behavior|persistence|events|validate|session|policy|kernel|state|security|resources|secrets|telemetry|scaling|transport|discovery|concurrency|tracing|scheduling)\\b(?=\\s*\\{)"
+        },
+        {
+          "name": "keyword.other.service.valor",
+          "match": "\\b(?:route|rpc|stream|handle|binding|model|table|consume|emit|subscribe|delivery|require|reject|classify|when|key|ttl|sticky|revocation|scale|metric|observe|auth|mode|allow|admission|timeout|retries|circuit_breaker|durability|isolation|partition|ordering|rollout|version|tokens|memory|cpu|enable|disable|set|with|use|replace)\\b"
+        }
+      ]
+    },
+    "intrinsics": {
+      "patterns": [
+        {
+          "name": "support.function.builtin.valor",
+          "match": "\\b(?:add|sub|mul|div|matmul|attention|scaled_dot_product_attention|layernorm|layer_norm|rmsnorm|rms_norm|residual|gelu|relu|silu|sigmoid|tanh|elu|leakyrelu|softmax|embedding|maxpool2d|max_pool2d|pooling|conv1d|conv2d|conv3d|batchnorm|batch_norm|stack|route|sequence_model|diffuse|grad|jvp|allgather|allreduce|reducescatter|checkpoint|nofuse|autocast|autocst|overlap|hypernetwork|fractal|zeroforcing|watchdog|reservoir|shard|cacheline|decaycell|gate|quarantine|quarantineflag|contractivemap|orthogonalprojection|contraction|lyapunov|newtonstep|trustregion|gatingloss|fractalgrow|sidechannelsafe|zkp|aes_xts|oram)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.valor",
+          "match": "(?<![\\w-])(?:0[xX][0-9A-Fa-f]+|0[bB][01]+|(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?)(?:[iu](?:8|16|32|64|128)|[iu]size|f16|bf16|f32|f64)?\\b"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        { "name": "entity.name.function.valor", "match": "\\b[A-Za-z_][\\w-]*\\b(?=\\s*\\()" }
+      ]
+    },
+    "properties": {
+      "patterns": [
+        { "name": "variable.other.property.valor", "match": "(?<=\\.)[A-Za-z_][\\w-]*\\b" }
+      ]
+    },
+    "lifetimes": {
+      "patterns": [
+        { "name": "constant.other.lifetime.valor", "match": "'[A-Za-z_][\\w-]*" }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        { "name": "keyword.operator.valor", "match": "->|::|==|!=|<=|>=|[+\\-*/&@!=<>?:]" }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        { "name": "variable.other.valor", "match": "\\b[A-Za-z_][\\w-]*\\b" }
+      ]
+    }
+  }
+}

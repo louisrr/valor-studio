@@ -1,0 +1,40 @@
+{
+  "name": "valor",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "1.0.0",
+  "publisher": "valorstudio",
+  "license": "MIT",
+  "engines": {
+    "vscode": "*"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "valor",
+        "extensions": [
+          ".valor"
+        ],
+        "aliases": [
+          "Valor",
+          "valor"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "valor",
+        "scopeName": "source.valor",
+        "path": "./syntaxes/valor.tmLanguage.json"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/microsoft/vscode.git"
+  }
+}
