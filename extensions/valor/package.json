@@ -8,9 +8,19 @@
   "engines": {
     "vscode": "*"
   },
+  "activationEvents": [
+    "onLanguage:valor"
+  ],
+  "main": "./out/extension",
   "categories": [
     "Programming Languages"
   ],
+  "capabilities": {
+    "virtualWorkspaces": false,
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
   "contributes": {
     "languages": [
       {
@@ -31,7 +41,49 @@
         "scopeName": "source.valor",
         "path": "./syntaxes/valor.tmLanguage.json"
       }
-    ]
+    ],
+    "commands": [
+      {
+        "command": "valor.build",
+        "title": "%command.build%",
+        "category": "Valor"
+      },
+      {
+        "command": "valor.run",
+        "title": "%command.run%",
+        "category": "Valor"
+      }
+    ],
+    "configuration": {
+      "title": "Valor",
+      "properties": {
+        "valor.compiler.path": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "scope": "machine-overridable",
+          "description": "%configuration.compiler.path%"
+        }
+      }
+    },
+    "menus": {
+      "editor/title/run": [
+        {
+          "command": "valor.run",
+          "when": "editorLangId == valor",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "npx gulp compile-extension:valor",
+    "watch": "npx gulp watch-extension:valor"
+  },
+  "devDependencies": {
+    "@types/node": "24.x"
   },
   "repository": {
     "type": "git",

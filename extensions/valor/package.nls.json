@@ -1,4 +1,7 @@
 {
-  "displayName": "Valor Language Basics",
-  "description": "Syntax highlighting, bracket matching, and editor configuration for Valor."
+  "displayName": "Valor Language Support",
+  "description": "Language support and compiler integration for Valor.",
+  "command.build": "Build Active File",
+  "command.run": "Run Active File",
+  "configuration.compiler.path": "Path to the Valor compiler executable. When unset, Valor Studio uses its bundled compiler."
 }
