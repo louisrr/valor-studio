@@ -51,6 +51,12 @@ const getCompilerPath = (context: vscode.ExtensionContext): string | undefined =
 	return bundledPath && fs.existsSync(bundledPath) ? bundledPath : undefined;
 };
 
+const getRuntimeArguments = (context: vscode.ExtensionContext): string[] => {
+	const runtimeName = process.platform === 'win32' ? 'valor-rt.lib' : 'libvalor-rt.a';
+	const runtimePath = context.asAbsolutePath(path.join('bin', `${process.platform}-${process.arch}`, runtimeName));
+	return fs.existsSync(runtimePath) ? ['--runtime', runtimePath] : [];
+};
+
 const toPosition = (position: CompilerPosition): vscode.Position => new vscode.Position(
 	Math.max(0, position.line - 1),
 	Math.max(0, position.col - 1)
@@ -146,7 +152,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		outputChannel.clear();
 		outputChannel.show(true);
 		outputChannel.appendLine(vscode.l10n.t('Building {0}', document.fileName));
-		childProcess.execFile(compiler, ['--json', 'build', document.fileName], { cwd: path.dirname(document.fileName) }, (error, stdout, stderr) => {
+		childProcess.execFile(compiler, ['--json', 'build', document.fileName, ...getRuntimeArguments(context)], { cwd: path.dirname(document.fileName) }, (error, stdout, stderr) => {
 			const compilerOutput = parseCompilerOutput(stdout, stderr);
 			setDiagnostics(diagnostics, compilerOutput);
 			if (stdout && !compilerOutput) {
@@ -175,12 +181,33 @@ export function activate(context: vscode.ExtensionContext): void {
 			return;
 		}
 
-		const terminal = vscode.window.createTerminal({
-			name: 'Valor',
-			shellPath: compiler,
-			shellArgs: ['run', document.fileName],
-			cwd: path.dirname(document.fileName)
+		fs.mkdirSync(context.globalStorageUri.fsPath, { recursive: true });
+		const executableName = process.platform === 'win32' ? 'valor-run.exe' : 'valor-run';
+		const executablePath = path.join(context.globalStorageUri.fsPath, executableName);
+		outputChannel.clear();
+		outputChannel.show(true);
+		outputChannel.appendLine(vscode.l10n.t('Building {0}', document.fileName));
+		childProcess.execFile(compiler, ['--json', 'build', document.fileName, '--out', executablePath, ...getRuntimeArguments(context)], { cwd: path.dirname(document.fileName) }, (error, stdout, stderr) => {
+			const compilerOutput = parseCompilerOutput(stdout, stderr);
+			setDiagnostics(diagnostics, compilerOutput);
+			if (error) {
+				if (stdout && !compilerOutput) {
+					outputChannel.append(stdout);
+				}
+				if (stderr && !compilerOutput) {
+					outputChannel.append(stderr);
+				}
+				outputChannel.appendLine(vscode.l10n.t('Valor build failed with exit code {0}.', error.code ?? 'unknown'));
+				return;
+			}
+
+			outputChannel.appendLine(vscode.l10n.t('Valor build completed successfully.'));
+			const terminal = vscode.window.createTerminal({
+				name: 'Valor',
+				shellPath: executablePath,
+				cwd: path.dirname(document.fileName)
+			});
+			terminal.show();
 		});
-		terminal.show();
 	}));
 }
