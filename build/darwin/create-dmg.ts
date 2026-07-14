@@ -162,7 +162,7 @@ async function main(buildDir?: string, outDir?: string): Promise<void> {
 	const artifactPath = path.join(outDir, `${dmgName}.dmg`);
 	const backgroundPath = path.join(import.meta.dirname, `dmg-background-${quality}.tiff`);
 	const diskIconPath = path.join(root, 'resources', 'darwin', 'code.icns');
-	let title = 'Code OSS';
+	let title = 'Valor Studio';
 	switch (quality) {
 		case 'stable':
 			title = 'VS Code';
