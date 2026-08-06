@@ -1,15 +1,32 @@
-# Build Valor Studio installers for macOS, Windows, and Linux.
+# Build Valor Studio installers for macOS, Windows, and Linux — compiler and all.
 #
-# Each installer is produced on its own OS runner (Inno Setup needs Windows,
-# dpkg/rpmbuild need Linux, codesign/.app need macOS), then uploaded as a
-# build artifact. Trigger it manually (Actions tab -> Run workflow) or by
-# pushing a tag like `v0.1.0`.
+# Two stages:
+#   1) compiler : build `valorc` + `libvalor-rt.a` from the valorlang repo on
+#                 each OS, bundle libLLVM next to it (relocated rpath) so it runs
+#                 on machines without a system LLVM, and upload as an artifact.
+#   2) build    : download the matching compiler artifact into the Valor
+#                 extension, build the IDE, produce the installer, (optionally)
+#                 sign + notarize, and upload.
 #
-# NOTE ON THE VALOR COMPILER: the Valor extension ships a per-platform binary
-# at extensions/valor/bin/<platform>-<arch>/valorc. Only darwin-arm64 exists
-# today. Legs whose binary is missing still build the IDE, but emit a loud
-# warning — the compile feature will be dead on that platform until you commit
-# a valorc built on/for that OS. See the "Check bundled valorc" step.
+# Trigger manually (Actions -> Run workflow) or by pushing a tag like `v0.1.0`.
+#
+# ── WHAT IS REAL vs. WHAT NEEDS A FIRST CI RUN TO SHAKE OUT ───────────────────
+#  VALIDATED LOCALLY:   macOS + Linux compiler builds, IDE packaging.
+#  REAL BUT UNVERIFIED: Windows compiler build. It uses the official
+#                       clang+llvm-*-windows-msvc release (has libs + CMake
+#                       config) and the ${VALOR_LLVM_LINK_LIBS} static-component
+#                       linking added to valorlang's cmake/LLVMConfig.cmake.
+#                       I have no Windows box, so the first run may surface a
+#                       missing LLVM component, a missing runtime DLL, or a
+#                       source-level MSVC portability issue to fix in valorlang.
+#  OPT-IN:              Code signing / notarization (needs your certs as GitHub
+#                       secrets; steps are skipped until those secrets exist).
+#  SECRETS you must add (Settings -> Secrets -> Actions):
+#    VALORLANG_TOKEN       PAT/deploy token with read access to louisrr/valorlang
+#    (mac signing)  MAC_CERT_P12, MAC_CERT_PASSWORD, MAC_SIGNING_IDENTITY,
+#                   AC_APPLE_ID, AC_TEAM_ID, AC_APP_PASSWORD
+#    (win signing)  WIN_CERT_PFX, WIN_CERT_PASSWORD
+# ─────────────────────────────────────────────────────────────────────────────
 
 name: Build Installers
 
@@ -22,30 +39,132 @@ on:
 permissions:
   contents: read
 
+env:
+  VALORLANG_REPO: louisrr/valorlang
+  VALORLANG_REF: release/v0.1.0
+  LLVM_MAJOR: '20'
+
 jobs:
-  build:
-    name: ${{ matrix.platform }}-${{ matrix.arch }}
+  # ===========================================================================
+  # Stage 1 — build the Valor compiler per OS, made self-contained.
+  # ===========================================================================
+  compiler:
+    name: valorc ${{ matrix.platform }}-${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14          # Apple Silicon runner
-            platform: darwin
-            arch: arm64
-            gulp_app: vscode-darwin-arm64-min
-          - os: windows-2022
-            platform: win32
-            arch: x64
-            gulp_app: vscode-win32-x64-min
-          - os: ubuntu-22.04
-            platform: linux
-            arch: x64
-            gulp_app: vscode-linux-x64-min
-          # To add more targets, copy a block above and change platform/arch/os:
-          #   darwin-x64  (Intel Macs)     os: macos-13
-          #   win32-arm64                  os: windows-2022
-          #   linux-arm64 / linux-armhf    needs cross-compile toolchain
+          - { os: macos-14,       platform: darwin, arch: arm64 }
+          - { os: ubuntu-22.04,   platform: linux,  arch: x64   }
+          - { os: windows-2022,   platform: win32,  arch: x64   }
+    steps:
+      - name: Checkout valorlang (compiler source)
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.VALORLANG_REPO }}
+          ref: ${{ env.VALORLANG_REF }}
+          token: ${{ secrets.VALORLANG_TOKEN }}
+          path: valorlang
+
+      # ---- macOS: brew llvm@20, build, bundle dylib via @loader_path ----------
+      - name: Build valorc (macOS)
+        if: matrix.platform == 'darwin'
+        shell: bash
+        working-directory: valorlang
+        run: |
+          set -euo pipefail
+          brew install llvm@20 cmake
+          LLVM20="$(brew --prefix llvm@20)"
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR="$LLVM20/lib/cmake/llvm"
+          cmake --build build --target valorc valor-rt -j"$(sysctl -n hw.ncpu)"
+          mkdir -p ../out
+          cp build/valorc build/libvalor-rt.a ../out/
+          # Ship libLLVM beside valorc and point the binary at it (self-contained).
+          cp "$LLVM20/lib/libLLVM.dylib" ../out/
+          ref="$(otool -L ../out/valorc | awk '/libLLVM\.dylib/{print $1; exit}')"
+          install_name_tool -change "$ref" '@loader_path/libLLVM.dylib' ../out/valorc
+          otool -L ../out/valorc | grep -i llvm
+          ../out/valorc --version
+
+      # ---- Linux: apt.llvm.org llvm-20, build, bundle .so via $ORIGIN ---------
+      - name: Build valorc (Linux)
+        if: matrix.platform == 'linux'
+        shell: bash
+        working-directory: valorlang
+        run: |
+          set -euo pipefail
+          wget -qO llvm.sh https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh "${LLVM_MAJOR}"
+          sudo apt-get install -y "llvm-${LLVM_MAJOR}-dev" "libclang-${LLVM_MAJOR}-dev" \
+            "clang-${LLVM_MAJOR}" cmake ninja-build patchelf
+          LLVMROOT="/usr/lib/llvm-${LLVM_MAJOR}"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_DIR="$LLVMROOT/lib/cmake/llvm" \
+            -DCMAKE_C_COMPILER="clang-${LLVM_MAJOR}" -DCMAKE_CXX_COMPILER="clang++-${LLVM_MAJOR}"
+          cmake --build build --target valorc valor-rt -j"$(nproc)"
+          mkdir -p ../out
+          cp build/valorc build/libvalor-rt.a ../out/
+          # Bundle the shared libLLVM and load it from beside the binary.
+          so="$(ldd build/valorc | awk '/libLLVM/{print $3; exit}')"
+          cp "$so" ../out/
+          patchelf --set-rpath '$ORIGIN' ../out/valorc
+          ldd ../out/valorc | grep -i llvm || true
+          ../out/valorc --version
+
+      # ---- Windows: official clang+llvm-*-windows-msvc release (has libs+cmake) -
+      # That release ships a STATIC LLVM (no libLLVM.dll), so valorlang links the
+      # component libs via ${VALOR_LLVM_LINK_LIBS} — see cmake/LLVMConfig.cmake in
+      # the valorlang repo. Built with the ClangCL toolset (closest to the
+      # macOS/Linux clang the code targets). valorc.exe is self-contained w.r.t.
+      # LLVM (static); if it turns out to need zlib/zstd/libxml2 DLLs, copy them
+      # from the LLVM release's bin/ into out/ (see the note below).
+      - name: Build valorc (Windows)
+        if: matrix.platform == 'win32'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ver = '20.1.8'   # a 20.x with a prebuilt windows-msvc dev package
+          $asset = "clang+llvm-$ver-x86_64-pc-windows-msvc"
+          $url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$ver/$asset.tar.xz"
+          Write-Host "Downloading $url"
+          curl.exe -fL -o llvm.tar.xz $url
+          tar -xf llvm.tar.xz
+          $llvmDir = Join-Path (Resolve-Path $asset) 'lib/cmake/llvm'
+          cmake -S valorlang -B valorlang/build -G "Visual Studio 17 2022" -A x64 -T ClangCL `
+            -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR="$llvmDir"
+          cmake --build valorlang/build --config Release --target valorc valor-rt -j
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          $exe = Get-ChildItem -Path valorlang/build -Recurse -Filter valorc.exe | Select-Object -First 1
+          $lib = Get-ChildItem -Path valorlang/build -Recurse -Filter valor-rt.lib | Select-Object -First 1
+          Copy-Item $exe.FullName out/valorc.exe
+          Copy-Item $lib.FullName out/valor-rt.lib
+          # Self-check. If this fails with a missing DLL, copy that DLL from
+          # "$asset/bin" into out/ here and re-run.
+          & out/valorc.exe --version
+
+      - name: Upload valorc artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: valorc-${{ matrix.platform }}-${{ matrix.arch }}
+          if-no-files-found: warn
+          path: out/
+
+  # ===========================================================================
+  # Stage 2 — build the IDE and produce the installer for each OS.
+  # ===========================================================================
+  build:
+    name: ${{ matrix.platform }}-${{ matrix.arch }}
+    needs: compiler
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14,     platform: darwin, arch: arm64, gulp_app: vscode-darwin-arm64-min }
+          - { os: windows-2022, platform: win32,  arch: x64,   gulp_app: vscode-win32-x64-min }
+          - { os: ubuntu-22.04, platform: linux,  arch: x64,   gulp_app: vscode-linux-x64-min }
 
     steps:
       - uses: actions/checkout@v6
@@ -54,62 +173,85 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # node-gyp (native modules) needs Python on all runners.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5   # node-gyp needs Python
         with:
           python-version: '3.11'
 
-      # ---- Linux: native build + packaging dependencies -----------------------
       - name: Install Linux build deps
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            pkg-config \
+          sudo apt-get install -y pkg-config \
             libx11-dev libx11-xcb-dev libxkbfile-dev \
             libsecret-1-dev libkrb5-dev libnotify-bin \
             fakeroot rpm
 
-      # ---- Guard: is a valorc bundled for THIS platform/arch? -----------------
-      # Warn (don't fail) so you can still produce IDE installers for testing.
-      - name: Check bundled valorc
+      # ---- Drop the freshly built compiler into the extension -----------------
+      - name: Download valorc
+        uses: actions/download-artifact@v4
+        with:
+          name: valorc-${{ matrix.platform }}-${{ matrix.arch }}
+          path: valorc-dl
+
+      - name: Install valorc into extension
         shell: bash
         run: |
-          bin_dir="extensions/valor/bin/${{ matrix.platform }}-${{ matrix.arch }}"
-          exe="valorc"; [ "${{ matrix.platform }}" = "win32" ] && exe="valorc.exe"
-          if [ ! -f "$bin_dir/$exe" ]; then
-            echo "::warning title=Missing Valor compiler::No $bin_dir/$exe committed. Valor Studio will build, but the Valor compile feature will not work on ${{ matrix.platform }}-${{ matrix.arch }}. Build valorc on that OS and commit it there."
+          dest="extensions/valor/bin/${{ matrix.platform }}-${{ matrix.arch }}"
+          mkdir -p "$dest"
+          if ls valorc-dl/valorc* >/dev/null 2>&1; then
+            cp -v valorc-dl/* "$dest"/
+            [ "${{ matrix.platform }}" != "win32" ] && chmod +x "$dest"/valorc || true
           else
-            echo "Found $bin_dir/$exe"
+            echo "::warning title=No compiler bundled::valorc artifact was empty for ${{ matrix.platform }}-${{ matrix.arch }}; IDE will build but the Valor compile feature won't work."
           fi
 
-      # ---- Install dependencies (retry: npm ci hangs intermittently) ----------
       - name: npm ci
         shell: bash
         run: |
-          for i in 1 2 3; do
-            npm ci && break
-            echo "npm ci attempt $i failed; retrying..." >&2
-            sleep 15
-          done
+          for i in 1 2 3; do npm ci && break; echo "npm ci attempt $i failed; retrying"; sleep 15; done
 
-      # ---- Build the app tree -------------------------------------------------
-      # Output lands ONE LEVEL UP from the repo, e.g. ../VSCode-darwin-arm64/.
       - name: Build app (${{ matrix.gulp_app }})
         run: npm run gulp ${{ matrix.gulp_app }}
 
-      # ---- macOS: zip the .app (add codesign/notarize/.dmg for real releases) -
-      - name: Package macOS
-        if: matrix.platform == 'darwin'
-        shell: bash
+      # ---------------- macOS: sign (optional) → notarize → .dmg ---------------
+      - name: Import macOS signing certificate
+        if: matrix.platform == 'darwin' && env.MAC_CERT_P12 != ''
+        env:
+          MAC_CERT_P12: ${{ secrets.MAC_CERT_P12 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
         run: |
-          app_dir="../VSCode-darwin-${{ matrix.arch }}"
-          ditto -c -k --sequesterRsrc --keepParent \
-            "$app_dir/Valor Studio.app" \
-            "ValorStudio-darwin-${{ matrix.arch }}.zip"
+          echo "$MAC_CERT_P12" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p ci build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p ci build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$MAC_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
 
-      # ---- Windows: Inno Setup installers (system + user) + portable archive --
-      # windows-2022 runner has Inno Setup 6 preinstalled.
+      - name: Package macOS (.dmg; sign+notarize if secrets present)
+        if: matrix.platform == 'darwin'
+        env:
+          MAC_SIGNING_IDENTITY: ${{ secrets.MAC_SIGNING_IDENTITY }}
+          AC_APPLE_ID: ${{ secrets.AC_APPLE_ID }}
+          AC_TEAM_ID: ${{ secrets.AC_TEAM_ID }}
+          AC_APP_PASSWORD: ${{ secrets.AC_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          app="../VSCode-darwin-${{ matrix.arch }}/Valor Studio.app"
+          if [ -n "${MAC_SIGNING_IDENTITY:-}" ]; then
+            codesign --deep --force --options runtime --timestamp \
+              --sign "$MAC_SIGNING_IDENTITY" "$app"
+          else
+            echo "::notice::No MAC_SIGNING_IDENTITY — producing an UNSIGNED .dmg (Gatekeeper will warn)."
+          fi
+          dmg="ValorStudio-darwin-${{ matrix.arch }}.dmg"
+          hdiutil create -volname "Valor Studio" -srcfolder "$app" -ov -format UDZO "$dmg"
+          if [ -n "${AC_APP_PASSWORD:-}" ]; then
+            xcrun notarytool submit "$dmg" --apple-id "$AC_APPLE_ID" \
+              --team-id "$AC_TEAM_ID" --password "$AC_APP_PASSWORD" --wait
+            xcrun stapler staple "$dmg"
+          fi
+
+      # ---------------- Windows: setup .exe + archive; sign if secret ----------
       - name: Package Windows
         if: matrix.platform == 'win32'
         run: |
@@ -118,24 +260,33 @@ jobs:
           npm run gulp vscode-win32-${{ matrix.arch }}-user-setup
           npm run gulp vscode-win32-${{ matrix.arch }}-archive
 
-      # ---- Linux: .deb and .rpm ----------------------------------------------
+      - name: Sign Windows installers
+        if: matrix.platform == 'win32' && env.WIN_CERT_PFX != ''
+        shell: pwsh
+        env:
+          WIN_CERT_PFX: ${{ secrets.WIN_CERT_PFX }}
+          WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+        run: |
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\cert.pfx", [Convert]::FromBase64String($env:WIN_CERT_PFX))
+          Get-ChildItem -Recurse -Path .build -Include *.exe | ForEach-Object {
+            signtool sign /f "$env:RUNNER_TEMP\cert.pfx" /p $env:WIN_CERT_PASSWORD `
+              /tr http://timestamp.digicert.com /td sha256 /fd sha256 $_.FullName
+          }
+
+      # ---------------- Linux: .deb + .rpm -------------------------------------
       - name: Package Linux
         if: matrix.platform == 'linux'
         run: |
           npm run gulp vscode-linux-${{ matrix.arch }}-build-deb
           npm run gulp vscode-linux-${{ matrix.arch }}-build-rpm
 
-      # ---- Collect installers -------------------------------------------------
-      # Globs are broad on purpose; exact filenames vary by version. If an
-      # artifact comes up empty, run the leg once and check the job log for the
-      # real output path, then tighten the glob.
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
           name: valor-studio-${{ matrix.platform }}-${{ matrix.arch }}
           if-no-files-found: warn
           path: |
-            ValorStudio-darwin-*.zip
+            ValorStudio-darwin-*.dmg
             .build/win32-*/**/*.exe
             .build/win32-*-archive/**/*.zip
             .build/linux/**/*.deb
