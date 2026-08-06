@@ -57,6 +57,7 @@ import { CommandsRegistry } from '../../../../platform/commands/common/commands.
 import { safeIntl } from '../../../../base/common/date.js';
 import { IsCompactTitleBarContext, TitleBarVisibleContext } from '../../../common/contextkeys.js';
 import { ServiceCollection } from '../../../../platform/instantiation/common/serviceCollection.js';
+import product from '../../../../platform/product/common/product.js';
 
 export interface ITitleVariable {
 	readonly name: string;
@@ -469,6 +470,15 @@ export class BrowserTitlebarPart extends Part implements ITitlebarPart {
 		this.leftContent = append(this.rootContainer, $('.titlebar-left'));
 		this.centerContent = append(this.rootContainer, $('.titlebar-center'));
 		this.rightContent = append(this.rootContainer, $('.titlebar-right'));
+
+		// Keep the product identity visible beside the native window controls while
+		// the command center remains the title bar's primary interaction.
+		if (!this.isAuxiliary) {
+			const productBrand = append(this.leftContent, $('div.valor-product-brand'));
+			append(productBrand, $('span.valor-product-logo'));
+			const productName = append(productBrand, $('span.valor-product-name'));
+			productName.textContent = product.nameShort.replace(/ Dev$/, '');
+		}
 
 		// App Icon (Windows, Linux)
 		if ((isWindows || isLinux) && !hasNativeTitlebar(this.configurationService, this.titleBarStyle)) {

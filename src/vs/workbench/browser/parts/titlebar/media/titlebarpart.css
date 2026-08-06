@@ -259,6 +259,46 @@
 	margin-left: 4px;
 }
 
+/* Valor product identity */
+.monaco-workbench .part.titlebar > .titlebar-container > .titlebar-left > .valor-product-brand {
+	display: flex;
+	align-items: center;
+	gap: var(--vscode-spacing-size80);
+	order: 1;
+	position: relative;
+	z-index: 2500;
+	flex: 0 0 auto;
+	color: var(--vscode-titleBar-activeForeground);
+	font-size: var(--vscode-fontSize-body1);
+	font-weight: var(--vscode-fontWeight-semiBold);
+	letter-spacing: 0.02em;
+	-webkit-app-region: drag;
+}
+
+.monaco-workbench.mac:not(.web) .part.titlebar > .titlebar-container > .titlebar-left > .valor-product-brand {
+	margin-left: calc(var(--vscode-spacing-size400) * 2);
+}
+
+.monaco-workbench:not(.mac) .part.titlebar > .titlebar-container > .titlebar-left > .valor-product-brand {
+	margin-left: var(--vscode-spacing-size80);
+}
+
+.monaco-workbench .part.titlebar > .titlebar-container > .titlebar-left > .valor-product-brand > .valor-product-logo {
+	width: 24px;
+	height: 24px;
+	flex: 0 0 auto;
+	background: url('../../../media/valor-v-logo.svg') center / contain no-repeat;
+}
+
+.monaco-workbench .part.titlebar.inactive > .titlebar-container > .titlebar-left > .valor-product-brand {
+	color: var(--vscode-titleBar-inactiveForeground);
+}
+
+.monaco-workbench.fullscreen .part.titlebar > .titlebar-container > .titlebar-left > .valor-product-brand,
+.monaco-workbench .part.titlebar > .titlebar-container:not(.has-center) > .titlebar-left > .valor-product-brand {
+	display: none;
+}
+
 .monaco-workbench .part.titlebar > .titlebar-container.counter-zoom .menubar .menubar-menu-button > .menubar-menu-items-holder.monaco-menu-container,
 .monaco-workbench .part.titlebar > .titlebar-container.counter-zoom .monaco-toolbar .dropdown-action-container {
 	zoom: var(--zoom-factor); /* helps to position the menu properly when counter zooming */
