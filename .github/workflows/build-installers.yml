@@ -51,6 +51,8 @@ jobs:
   compiler:
     name: valorc ${{ matrix.platform }}-${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
+    # Bound each leg so a hung download/link fails fast instead of burning hours.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -129,7 +131,11 @@ jobs:
           $asset = "clang+llvm-$ver-x86_64-pc-windows-msvc"
           $url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$ver/$asset.tar.xz"
           Write-Host "Downloading $url"
-          curl.exe -fL -o llvm.tar.xz $url
+          # ~940 MB. Retry + timeouts so a stalled connection fails fast
+          # instead of hanging the job (the first run hung ~3h here).
+          curl.exe -fL --retry 5 --retry-all-errors --connect-timeout 60 `
+            --speed-limit 1024 --speed-time 120 -o llvm.tar.xz $url
+          Write-Host "Extracting..."
           tar -xf llvm.tar.xz
           $llvmDir = Join-Path (Resolve-Path $asset) 'lib/cmake/llvm'
           cmake -S valorlang -B valorlang/build -G "Visual Studio 17 2022" -A x64 -T ClangCL `
@@ -157,6 +163,10 @@ jobs:
   build:
     name: ${{ matrix.platform }}-${{ matrix.arch }}
     needs: compiler
+    # Run even if some compiler legs failed, so a working platform (e.g. macOS)
+    # still gets an installer instead of being blocked by another (e.g. Windows).
+    # Each leg uses whatever compiler artifact exists; a missing one just warns.
+    if: ${{ !cancelled() }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -189,6 +199,7 @@ jobs:
       # ---- Drop the freshly built compiler into the extension -----------------
       - name: Download valorc
         uses: actions/download-artifact@v4
+        continue-on-error: true   # a failed compiler leg means no artifact; the next step warns
         with:
           name: valorc-${{ matrix.platform }}-${{ matrix.arch }}
           path: valorc-dl
