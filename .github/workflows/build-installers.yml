@@ -1,0 +1,142 @@
+# Build Valor Studio installers for macOS, Windows, and Linux.
+#
+# Each installer is produced on its own OS runner (Inno Setup needs Windows,
+# dpkg/rpmbuild need Linux, codesign/.app need macOS), then uploaded as a
+# build artifact. Trigger it manually (Actions tab -> Run workflow) or by
+# pushing a tag like `v0.1.0`.
+#
+# NOTE ON THE VALOR COMPILER: the Valor extension ships a per-platform binary
+# at extensions/valor/bin/<platform>-<arch>/valorc. Only darwin-arm64 exists
+# today. Legs whose binary is missing still build the IDE, but emit a loud
+# warning — the compile feature will be dead on that platform until you commit
+# a valorc built on/for that OS. See the "Check bundled valorc" step.
+
+name: Build Installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14          # Apple Silicon runner
+            platform: darwin
+            arch: arm64
+            gulp_app: vscode-darwin-arm64-min
+          - os: windows-2022
+            platform: win32
+            arch: x64
+            gulp_app: vscode-win32-x64-min
+          - os: ubuntu-22.04
+            platform: linux
+            arch: x64
+            gulp_app: vscode-linux-x64-min
+          # To add more targets, copy a block above and change platform/arch/os:
+          #   darwin-x64  (Intel Macs)     os: macos-13
+          #   win32-arm64                  os: windows-2022
+          #   linux-arm64 / linux-armhf    needs cross-compile toolchain
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      # node-gyp (native modules) needs Python on all runners.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # ---- Linux: native build + packaging dependencies -----------------------
+      - name: Install Linux build deps
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libx11-dev libx11-xcb-dev libxkbfile-dev \
+            libsecret-1-dev libkrb5-dev libnotify-bin \
+            fakeroot rpm
+
+      # ---- Guard: is a valorc bundled for THIS platform/arch? -----------------
+      # Warn (don't fail) so you can still produce IDE installers for testing.
+      - name: Check bundled valorc
+        shell: bash
+        run: |
+          bin_dir="extensions/valor/bin/${{ matrix.platform }}-${{ matrix.arch }}"
+          exe="valorc"; [ "${{ matrix.platform }}" = "win32" ] && exe="valorc.exe"
+          if [ ! -f "$bin_dir/$exe" ]; then
+            echo "::warning title=Missing Valor compiler::No $bin_dir/$exe committed. Valor Studio will build, but the Valor compile feature will not work on ${{ matrix.platform }}-${{ matrix.arch }}. Build valorc on that OS and commit it there."
+          else
+            echo "Found $bin_dir/$exe"
+          fi
+
+      # ---- Install dependencies (retry: npm ci hangs intermittently) ----------
+      - name: npm ci
+        shell: bash
+        run: |
+          for i in 1 2 3; do
+            npm ci && break
+            echo "npm ci attempt $i failed; retrying..." >&2
+            sleep 15
+          done
+
+      # ---- Build the app tree -------------------------------------------------
+      # Output lands ONE LEVEL UP from the repo, e.g. ../VSCode-darwin-arm64/.
+      - name: Build app (${{ matrix.gulp_app }})
+        run: npm run gulp ${{ matrix.gulp_app }}
+
+      # ---- macOS: zip the .app (add codesign/notarize/.dmg for real releases) -
+      - name: Package macOS
+        if: matrix.platform == 'darwin'
+        shell: bash
+        run: |
+          app_dir="../VSCode-darwin-${{ matrix.arch }}"
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$app_dir/Valor Studio.app" \
+            "ValorStudio-darwin-${{ matrix.arch }}.zip"
+
+      # ---- Windows: Inno Setup installers (system + user) + portable archive --
+      # windows-2022 runner has Inno Setup 6 preinstalled.
+      - name: Package Windows
+        if: matrix.platform == 'win32'
+        run: |
+          npm run gulp vscode-win32-${{ matrix.arch }}-inno-updater
+          npm run gulp vscode-win32-${{ matrix.arch }}-system-setup
+          npm run gulp vscode-win32-${{ matrix.arch }}-user-setup
+          npm run gulp vscode-win32-${{ matrix.arch }}-archive
+
+      # ---- Linux: .deb and .rpm ----------------------------------------------
+      - name: Package Linux
+        if: matrix.platform == 'linux'
+        run: |
+          npm run gulp vscode-linux-${{ matrix.arch }}-build-deb
+          npm run gulp vscode-linux-${{ matrix.arch }}-build-rpm
+
+      # ---- Collect installers -------------------------------------------------
+      # Globs are broad on purpose; exact filenames vary by version. If an
+      # artifact comes up empty, run the leg once and check the job log for the
+      # real output path, then tighten the glob.
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: valor-studio-${{ matrix.platform }}-${{ matrix.arch }}
+          if-no-files-found: warn
+          path: |
+            ValorStudio-darwin-*.zip
+            .build/win32-*/**/*.exe
+            .build/win32-*-archive/**/*.zip
+            .build/linux/**/*.deb
+            .build/linux/**/*.rpm
