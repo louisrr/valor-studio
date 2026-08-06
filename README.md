@@ -1,78 +1,122 @@
-# Visual Studio Code - Open Source ("Code - OSS")
-[![Feature Requests](https://img.shields.io/github/issues/microsoft/vscode/feature-request.svg)](https://github.com/microsoft/vscode/issues?q=is%3Aopen+is%3Aissue+label%3Afeature-request+sort%3Areactions-%2B1-desc)
-[![Bugs](https://img.shields.io/github/issues/microsoft/vscode/bug.svg)](https://github.com/microsoft/vscode/issues?utf8=✓&q=is%3Aissue+is%3Aopen+label%3Abug)
-[![Gitter](https://img.shields.io/badge/chat-on%20gitter-yellow.svg)](https://gitter.im/Microsoft/vscode)
-
-## The Repository
-
-This repository ("`Code - OSS`") is where we (Microsoft) develop the [Visual Studio Code](https://code.visualstudio.com) product together with the community. Not only do we work on code and issues here, but we also publish our [roadmap](https://github.com/microsoft/vscode/wiki/Roadmap), [monthly iteration plans](https://github.com/microsoft/vscode/wiki/Iteration-Plans), and our [endgame plans](https://github.com/microsoft/vscode/wiki/Running-the-Endgame). This source code is available to everyone under the standard [MIT license](https://github.com/microsoft/vscode/blob/main/LICENSE.txt).
-
-## Visual Studio Code
+<h1 align="center">Valor Studio</h1>
 
 <p align="center">
-  <img alt="VS Code in action" src="https://github.com/user-attachments/assets/56af271c-949d-454c-a3ea-16188c063414">
+  <em>An editor built for a deterministic systems language — Valor, batteries included.</em>
 </p>
 
-[Visual Studio Code](https://code.visualstudio.com) is a distribution of the `Code - OSS` repository with Microsoft-specific customizations released under a traditional [Microsoft product license](https://code.visualstudio.com/License/).
+<p align="center">
+  <a href="https://github.com/louisrr/valor-studio/actions/workflows/build-installers.yml"><img alt="Build Installers" src="https://github.com/louisrr/valor-studio/actions/workflows/build-installers.yml/badge.svg"></a>
+  <a href="LICENSE.txt"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
+  <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-blue">
+  <img alt="Built on Code - OSS" src="https://img.shields.io/badge/built%20on-Code%20--%20OSS-007ACC">
+</p>
 
-[Visual Studio Code](https://code.visualstudio.com) combines the simplicity of a code editor with what developers need for their core edit-build-debug cycle. It provides comprehensive code editing, navigation, and understanding support along with lightweight debugging, a rich extensibility model, and lightweight integration with existing tools.
+<p align="center">
+  <img alt="Valor" src="https://img.shields.io/badge/Valor-Compiler-black">
+  <img alt="Runtime" src="https://img.shields.io/badge/Runtime-Deterministic-orange">
+  <img alt="LLVM" src="https://img.shields.io/badge/LLVM-Backend-blue">
+  <img alt="C ABI" src="https://img.shields.io/badge/C_ABI-Stable-blue">
+  <img alt="Python FFI" src="https://img.shields.io/badge/Python_FFI-Supported-blue">
+  <img alt="Lean 4" src="https://img.shields.io/badge/Lean4-Scoped_Proofs-purple">
+  <img alt="determinism" src="https://img.shields.io/badge/execution-deterministic%20O(1)-brightgreen">
+  <img alt="LMFK" src="https://img.shields.io/badge/LMFK-contract%20compliant-000000">
+</p>
 
-Visual Studio Code is updated monthly with new features and bug fixes. You can download it for Windows, macOS, and Linux on [Visual Studio Code's website](https://code.visualstudio.com/Download). To get the latest releases every day, install the [Insiders build](https://code.visualstudio.com/insiders).
+<p align="center">
+  <img alt="Valor Studio editing a Valor source file" src="screenshots/valor-studio.png">
+</p>
 
-## Contributing
+Valor Studio is a distribution of [Code - OSS](https://github.com/microsoft/vscode) (the open-source core of Visual Studio Code) with first-class support for the **Valor** programming language built in. Syntax highlighting, one-key build/run, and the `valorc` compiler ship inside the editor, so you can go from a fresh `.valor` file to a native binary without installing a toolchain separately.
 
-There are many ways in which you can participate in this project, for example:
+## The Valor language
 
-* [Submit bugs and feature requests](https://github.com/microsoft/vscode/issues), and help us verify as they are checked in
-* Review [source code changes](https://github.com/microsoft/vscode/pulls)
-* Review the [documentation](https://github.com/microsoft/vscode-docs) and make pull requests for anything from typos to new content.
+Valor is a statically typed, ahead-of-time compiled systems language built for workloads where **the result and the timing must be reproducible**: numerical computing, deep-learning kernels, high-frequency trading, and deployable services. If you've written C, Rust, or C++, Valor's surface will feel familiar — declarations lead with a type, blocks use braces, statements end with a semicolon — with a few deliberate differences aimed at determinism.
 
-If you are interested in fixing issues and contributing directly to the code base,
-please see the document [How to Contribute](https://github.com/microsoft/vscode/wiki/How-to-Contribute), which covers the following:
+- **Deterministic by design.** The same source, built the same way, produces the same bytes and the same run-to-run behavior. A strict mode (`--strict-deterministic`) turns any determinism violation into a hard compile error.
+- **Contracts and invariants are first-class.** Preconditions (`requires`), postconditions (`ensures`), and reusable constraint sets (`invariant`) let the compiler *prove* properties — or lower them to runtime checks when it can't.
+- **Deep learning is syntax, not a library.** Operators like `matmul`, `attention`, `softmax`, and `layernorm` are built into the language, so models compose as first-class expressions.
+- **Cost is part of the type system.** Declare a worst-case budget (`@cost`) and have the compiler bound tail latency, making p99.999 a *proven ceiling* rather than a measurement.
+- **Native performance.** Valor compiles through LLVM to native machine code.
 
-* [How to build and run from source](https://github.com/microsoft/vscode/wiki/How-to-Contribute)
-* [The development workflow, including debugging and running tests](https://github.com/microsoft/vscode/wiki/How-to-Contribute#debugging)
-* [Coding guidelines](https://github.com/microsoft/vscode/wiki/Coding-Guidelines)
-* [Submitting pull requests](https://github.com/microsoft/vscode/wiki/How-to-Contribute#pull-requests)
-* [Finding an issue to work on](https://github.com/microsoft/vscode/wiki/How-to-Contribute#where-to-contribute)
-* [Contributing to translations](https://aka.ms/vscodeloc)
+### A first taste
 
-## Feedback
+```valor
+module app;
 
-* Ask a question on [Stack Overflow](https://stackoverflow.com/questions/tagged/vscode)
-* [Request a new feature](CONTRIBUTING.md)
-* Upvote [popular feature requests](https://github.com/microsoft/vscode/issues?q=is%3Aopen+is%3Aissue+label%3Afeature-request+sort%3Areactions-%2B1-desc)
-* [File an issue](https://github.com/microsoft/vscode/issues)
-* Connect with the extension author community on [GitHub Discussions](https://github.com/microsoft/vscode-discussions/discussions) or [Slack](https://aka.ms/vscode-dev-community)
-* Follow [@code](https://x.com/code) and let us know what you think!
+// Return type leads, parameters are `Type name`.
+public i64 fib(i64 n) {
+    if (n < 2) { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
 
-See our [wiki](https://github.com/microsoft/vscode/wiki/Feedback-Channels) for a description of each of these channels and information on some other available community-driven channels.
+public i32 main() {
+    i64 answer = fib(10);
+    return 0;
+}
+```
 
-## Related Projects
+### What Valor is good at
 
-Many of the core components and extensions to VS Code live in their own repositories on GitHub. For example, the [node debug adapter](https://github.com/microsoft/vscode-node-debug) and the [mono debug adapter](https://github.com/microsoft/vscode-mono-debug) repositories are separate from each other. For a complete list, please visit the [Related Projects](https://github.com/microsoft/vscode/wiki/Related-Projects) page on our [wiki](https://github.com/microsoft/vscode/wiki).
+| Domain | What the language gives you |
+|---|---|
+| Numerics & linear algebra | Fixed and dynamic `Tensor`/`Vector`/`Matrix` types, exact reproducibility |
+| Deep learning | Built-in `matmul`, `attention`, `conv2d`, `softmax`, normalization operators |
+| Systems & HFT | Bounded, constant-time code paths; `@noalloc`; worst-case cost contracts |
+| Services | A structured `service` unit with deployment/manifest tooling |
 
-## Bundled Extensions
+## Getting Valor Studio
 
-VS Code includes a set of built-in extensions located in the [extensions](extensions) folder, including grammars and snippets for many languages. Extensions that provide rich language support (inline suggestions, Go to Definition) for a language have the suffix `language-features`. For example, the `json` extension provides coloring for `JSON` and the `json-language-features` extension provides rich language support for `JSON`.
+### Download a build
 
-## Development Container
+Prebuilt installers are produced by the [**Build Installers**](https://github.com/louisrr/valor-studio/actions/workflows/build-installers.yml) workflow for macOS, Windows, and Linux:
 
-This repository includes a Visual Studio Code Dev Containers / GitHub Codespaces development container.
+- **Tagged releases** attach installers to the [Releases](https://github.com/louisrr/valor-studio/releases) page.
+- **Latest development builds** are on the Actions run pages — open the most recent successful run and download the `valor-studio-<platform>-<arch>` artifact (`.dmg`, `.exe`, `.deb`, or `.rpm`).
 
-* For [Dev Containers](https://aka.ms/vscode-remote/download/containers), use the **Dev Containers: Clone Repository in Container Volume...** command which creates a Docker volume for better disk I/O on macOS and Windows.
-  * If you already have VS Code and Docker installed, you can also click [here](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/microsoft/vscode) to get started. This will cause VS Code to automatically install the Dev Containers extension if needed, clone the source code into a container volume, and spin up a dev container for use.
+### Run from source
 
-* For Codespaces, install the [GitHub Codespaces](https://marketplace.visualstudio.com/items?itemName=GitHub.codespaces) extension in VS Code, and use the **Codespaces: Create New Codespace** command.
+Requires **Node.js** (the version pinned in [`.nvmrc`](.nvmrc)), **Python 3**, and a C/C++ toolchain (Xcode CLT on macOS, Build Tools on Windows, `build-essential` on Linux).
 
-Docker / the Codespace should have at least **4 cores and 6 GB of RAM (8 GB recommended)** to run a full build. See the [development container README](.devcontainer/README.md) for more information.
+```bash
+git clone https://github.com/louisrr/valor-studio.git
+cd valor-studio
+npm ci
+# macOS / Linux:
+./scripts/code.sh
+# Windows:
+.\scripts\code.bat
+```
 
-## Code of Conduct
+## Writing Valor in Valor Studio
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+1. Open or create a file ending in **`.valor`** — you'll get Valor syntax highlighting and outline symbols immediately.
+2. Build or run without leaving the editor:
+   - **Command Palette** (`Cmd/Ctrl+Shift+P`) → **Valor: Build** or **Valor: Run**.
+   - or, from the integrated terminal: `valorc build src/main.valor -o build/valor-app`.
+3. Diagnostics from `valorc` appear inline in the editor and in the **Problems** panel.
+
+The compiler path is auto-detected from the bundled binary. To point at a different `valorc`, set **`valor.compiler.path`** in Settings.
+
+### Supported target platforms
+
+Valor's backend targets these platform/architecture pairs:
+
+- **Apple** — AArch64 (Apple silicon, macOS)
+- **Android** — AArch64 and x86-64
+- **Linux** — x86-64
+- **FreeBSD** — x86-64
+- **Windows** — x86-64
+
+## The bundled compiler
+
+The Valor extension ([`extensions/valor`](extensions/valor)) ships a per-platform `valorc` under `extensions/valor/bin/<platform>-<arch>/`. The [Build Installers](.github/workflows/build-installers.yml) workflow builds `valorc` from the [Valor compiler](https://github.com/louisrr/valorlang) source for each OS and bundles it into the installer, so the editor and the compiler are always released together.
+
+> **Version note.** Valor Studio tracks Valor **v0.1**. A few language constructs are recognized by the parser but not yet fully lowered by the backend; those are flagged **staged** in the language docs.
+
+## Building installers
+
+Installers for all three OSes are produced by GitHub Actions — see [`.github/workflows/build-installers.yml`](.github/workflows/build-installers.yml). Trigger it from the **Actions** tab (*Run workflow*) or by pushing a `v*` tag.
 
 ## License
 
-Copyright (c) Microsoft Corporation. All rights reserved.
-
-Licensed under the [MIT](LICENSE.txt) license.
+Valor Studio is a fork of [Code - OSS](https://github.com/microsoft/vscode), © Microsoft Corporation, and is distributed under the [MIT](LICENSE.txt) license. Third-party components retain their own licenses; see [`ThirdPartyNotices.txt`](ThirdPartyNotices.txt).
