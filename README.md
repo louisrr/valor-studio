@@ -64,6 +64,28 @@ public i32 main() {
 | Systems & HFT | Bounded, constant-time code paths; `@noalloc`; worst-case cost contracts |
 | Services | A structured `service` unit with deployment/manifest tooling |
 
+## The Valor language manual
+
+The full language reference lives in **[`docs/valor/`](docs/valor/README.md)** — start
+there to learn the syntax, type system, contracts, and standard library.
+
+### How the manual is organized
+
+- **[Getting Started](docs/valor/getting-started.md)** — install the toolchain, compile and
+  run your first program.
+  - **[Using invariants](docs/valor/getting-started/invariants.md)** — add type, function,
+    and loop correctness contracts.
+  - **[Building services](docs/valor/getting-started/services.md)** — declare a service,
+    configure its target, and emit deployment artifacts.
+- **[Language Basics](docs/valor/basics.md)** — variables, types, and control flow.
+- **[Functions and Modules](docs/valor/functions.md)** — functions, generics, imports, and
+  the standard library.
+- **[Service Primitive](docs/valor/SERVICE.md)** — the full service/deployment driver contract.
+
+> **Version note.** The manual describes Valor **v0.1** as accepted by the shipping
+> `valorc` front-end. A few constructs are recognized by the parser but not yet fully
+> lowered by the backend; those are flagged inline as **staged**.
+
 ## Getting Valor Studio
 
 ### Download a build
