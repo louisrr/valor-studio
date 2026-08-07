@@ -87,6 +87,41 @@ npm ci
 .\scripts\code.bat
 ```
 
+## Try the Valor toolchain on macOS (Apple Silicon)
+
+Want to compile and run a Valor program without building the whole editor? Grab
+the prebuilt **Valor toolchain** (a self-contained `valorc` + standard library +
+runtime) and run it from the terminal.
+
+> **Requirements:** an Apple Silicon Mac (`arm64`). You'll be sent a
+> `valor-toolchain.tar.gz`.
+
+```bash
+# 1. Prereqs
+xcode-select --install            # system linker + SDK (if not already)
+brew install llvm@20              # provides a matching clang-20
+
+# 2. Unpack + clear Gatekeeper quarantine
+tar xzf valor-toolchain.tar.gz
+xattr -dr com.apple.quarantine valor-toolchain
+
+# 3. Point the toolchain's clang at your llvm@20
+ln -sf "$(brew --prefix llvm@20)/bin/clang" valor-toolchain/bin/clang
+
+# 4. Build + run a program
+cat > hello.valor <<'EOF'
+module hello;
+import std.io;
+public i32 main() { std::io::print("Hello, World!\n"); return 0; }
+EOF
+./valor-toolchain/bin/valorc build hello.valor --out hello
+./hello        # runs — output is garbled until the string-ABI fix
+```
+
+> **Heads up:** at this stage a program **compiles, links, and runs**, but string
+> output is still garbled — a known issue in the value-passing ABI at the
+> Valor→C boundary. The mechanics work; correct output is the next fix.
+
 ## Writing Valor in Valor Studio
 
 1. Open or create a file ending in **`.valor`** — you'll get Valor syntax highlighting and outline symbols immediately.
