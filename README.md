@@ -93,15 +93,17 @@ Want to compile and run a Valor program without building the whole editor? Grab
 the prebuilt **Valor toolchain** (a self-contained `valorc` + standard library +
 runtime) and run it from the terminal.
 
-> **Requirements:** an Apple Silicon Mac (`arm64`). You'll be sent a
-> `valor-toolchain.tar.gz`.
+> **Requirements:** an Apple Silicon Mac (`arm64`).
+
+Download the toolchain: **[valor-toolchain.tar.gz](https://github.com/louisrr/valor-studio/releases/download/v0.1.0-toolchain-macos/valor-toolchain.tar.gz)** (from the [macOS preview release](https://github.com/louisrr/valor-studio/releases/tag/v0.1.0-toolchain-macos)).
 
 ```bash
 # 1. Prereqs
 xcode-select --install            # system linker + SDK (if not already)
 brew install llvm@20              # provides a matching clang-20
 
-# 2. Unpack + clear Gatekeeper quarantine
+# 2. Download, unpack + clear Gatekeeper quarantine
+curl -LO https://github.com/louisrr/valor-studio/releases/download/v0.1.0-toolchain-macos/valor-toolchain.tar.gz
 tar xzf valor-toolchain.tar.gz
 xattr -dr com.apple.quarantine valor-toolchain
 
