@@ -23,10 +23,10 @@ Create a file called `hello.valor`:
 ```valor
 module app;
 
-import std.io;
+import std.string;
 
 public i32 main() {
-    std::io::print_line("Hello, Valor!");
+    std::string::print("Hello, Valor!\n");
     return 0;
 }
 ```
@@ -34,9 +34,9 @@ public i32 main() {
 Three things to notice:
 
 - **`module app;`** names the current module. Every file belongs to a module.
-- **`import std.io;`** pulls in a standard-library module. Import paths are
-  dot-separated (`std.io`), and once imported you call members with `::`
-  (`std::io::print_line`).
+- **`import std.string;`** pulls in a standard-library module. Import paths are
+  dot-separated (`std.string`), and once imported you call members with `::`
+  (`std::string::print`).
 - **`public i32 main()`** is the entry point. The return type (`i32`) comes
   *before* the name, and `public` makes it visible outside the module.
 

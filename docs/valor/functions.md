@@ -19,7 +19,7 @@ Use `void` for a function that returns nothing:
 
 ```valor
 public void greet(string who) {
-    std::io::print_line(who);
+    std::string::print(who);
 }
 ```
 

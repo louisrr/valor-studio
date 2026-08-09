@@ -135,16 +135,12 @@ ln -sf "$(brew --prefix llvm@20)/bin/clang" valor-toolchain/bin/clang
 # 4. Build + run a program
 cat > hello.valor <<'EOF'
 module hello;
-import std.io;
-public i32 main() { std::io::print("Hello, World!\n"); return 0; }
+import std.string;
+public i32 main() { std::string::print("Hello, World!\n"); return 0; }
 EOF
 ./valor-toolchain/bin/valorc build hello.valor --out hello
-./hello        # runs — output is garbled until the string-ABI fix
+./hello        # -> Hello, World!
 ```
-
-> **Heads up:** at this stage a program **compiles, links, and runs**, but string
-> output is still garbled — a known issue in the value-passing ABI at the
-> Valor→C boundary. The mechanics work; correct output is the next fix.
 
 ## Writing Valor in Valor Studio
 
