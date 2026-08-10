@@ -80,6 +80,7 @@ there to learn the syntax, type system, contracts, and standard library.
 - **[Language Basics](docs/valor/basics.md)** — variables, types, and control flow.
 - **[Functions and Modules](docs/valor/functions.md)** — functions, generics, imports, and
   the standard library.
+- **[Standard Library](docs/valor/standard-library/README.md)** — the full module reference (`std.*`, `web.*`, and more).
 - **[Service Primitive](docs/valor/SERVICE.md)** — the full service/deployment driver contract.
 
 > **Version note.** The manual describes Valor **v0.1** as accepted by the shipping
