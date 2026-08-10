@@ -226,6 +226,7 @@ i32 v = std::core::optionUnwrapOrI32(tag, value, 0);
 ## Where to go next
 
 You now have the full surface of everyday Valor: types, control flow, functions,
-generics, contracts, and modules. From here, explore the `std::…` modules for the
-building blocks your program needs, and reach for `--strict-deterministic` when
-reproducibility must be guaranteed.
+generics, contracts, and modules. From here, explore the
+**[Standard Library](standard-library/README.md)** for the `std.*`/`web.*` modules
+your program needs, and reach for `--strict-deterministic` when reproducibility
+must be guaranteed.
