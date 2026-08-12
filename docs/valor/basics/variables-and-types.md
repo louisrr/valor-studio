@@ -111,6 +111,58 @@ Matrix<f64, 3, 3>         m;    // 3x3 matrix
 Tensor<2, [128, 256], f32> w;   // rank-2 tensor, dtype f32
 ```
 
+### TensorView
+
+A `Tensor` *owns* its data. A `TensorView` is a lightweight, **non-owning**
+borrow into an existing tensor — it carries the rank, shape, and dtype but no
+storage of its own, so passing one is cheap and copies nothing. Views come in a
+read-only form (`TensorView`) and a writable form (`TensorViewMut`), and each
+carries a lifetime (`'a`) tying it to the tensor it borrows from:
+
+```valor
+Tensor<2, [128, 256], f32> w;
+
+// Borrow the whole tensor as a read-only view.
+std::la::TensorView<'a, 2, f32> v = w.view();
+
+// Borrow it mutably so a routine can write into the backing storage.
+std::la::TensorViewMut<'a, 2, f32> vmut = w.view_mut();
+
+// Views are what std routines accept, so they can operate on any tensor
+// (or sub-region of one) without taking ownership of the data.
+std::la::fill(vmut, 0.0);
+```
+
+Because a view only borrows, the tensor `w` must outlive every view taken from
+it — the `'a` lifetime is what the compiler checks to guarantee that.
+
+### Stride
+
+A view does not have to be contiguous. Its **strides** say how many elements to
+step in the underlying buffer to move one position along each axis. A row-major
+`[128, 256]` tensor has strides `[256, 1]`: advancing one row skips 256
+elements, advancing one column skips 1. Strides are what let a view describe a
+non-contiguous slice — a single column, a transpose, or a broadcast — without
+copying:
+
+```valor
+Tensor<2, [128, 256], f32> w;
+
+// Contiguous row-major strides for the full tensor: [256, 1].
+std::la::TensorView<'a, 2, f32> v = w.view();
+
+// A column view: same buffer, extent 128, but stride 256 so each step
+// jumps a whole row instead of one element.
+std::la::TensorView<'a, 1, f32> col = w.column(3);   // stride 256
+
+// A transposed view just swaps the strides to [1, 256] — no data moves.
+std::la::TensorView<'a, 2, f32> t = w.transpose();
+```
+
+Since strides are just per-axis step counts, a stride of `1` is an ordinary
+contiguous run, while a larger stride gathers spread-out elements (a column or
+channel) as if they were dense.
+
 A tensor dimension of `?` marks an unknown (dynamic) extent:
 
 ```valor
